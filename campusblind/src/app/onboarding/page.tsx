@@ -1,8 +1,9 @@
 'use client'
 
+import { useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboarding'
 import { StepEmail }       from '@/components/onboarding/StepEmail'
-import { StepVerify }      from '@/components/onboarding/StepVerify'
 import { StepInstitution } from '@/components/onboarding/StepInstitution'
 import { StepField }       from '@/components/onboarding/StepField'
 import { StepInterests }   from '@/components/onboarding/StepInterests'
@@ -10,11 +11,22 @@ import { StepAvatar }      from '@/components/onboarding/StepAvatar'
 import { ProgressBar }     from '@/components/onboarding/ProgressBar'
 
 export default function OnboardingPage() {
-  const { step, totalSteps } = useOnboardingStore()
+  const searchParams = useSearchParams()
+  const { step, goToStep } = useOnboardingStore()
+
+  // If redirected back from magic link, jump to step 3
+  useEffect(() => {
+    const startStep = searchParams.get('step')
+    if (startStep) goToStep(Number(startStep))
+  }, [])
+
+  // Now only 5 real steps (no OTP step)
+  // Step 1 = Email, 2 = Institution, 3 = Field, 4 = Interests, 5 = Avatar
+  const totalSteps = 5
+  const displayStep = step === 1 ? 1 : step - 1 // adjust display after removing step 2
 
   const steps: Record<number, React.ReactNode> = {
     1: <StepEmail />,
-    2: <StepVerify />,
     3: <StepInstitution />,
     4: <StepField />,
     5: <StepInterests />,
@@ -51,14 +63,16 @@ export default function OnboardingPage() {
         <span className="font-syne font-bold text-xl tracking-tight text-[#f0f2ff]">CampusBlind</span>
       </div>
 
-      {/* Progress */}
-      <div className="relative z-10 w-full max-w-md mb-8">
-        <ProgressBar current={step} total={totalSteps} />
-      </div>
+      {/* Progress — only show after email step */}
+      {step > 1 && (
+        <div className="relative z-10 w-full max-w-md mb-8">
+          <ProgressBar current={displayStep} total={totalSteps} />
+        </div>
+      )}
 
       {/* Step card */}
       <div className="relative z-10 w-full max-w-md">
-        {steps[step]}
+        {steps[step] ?? <StepEmail />}
       </div>
 
       {/* Footer */}
