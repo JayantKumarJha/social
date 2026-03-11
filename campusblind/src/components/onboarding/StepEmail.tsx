@@ -7,15 +7,14 @@ import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 
 export function StepEmail() {
-  const { email, userType, setEmail, setUserType, setOtpSent, nextStep } = useOnboardingStore()
+  const { email, userType, setEmail, setUserType } = useOnboardingStore()
   const [loading, setLoading] = useState(false)
+  const [sent, setSent] = useState(false)
   const [localEmail, setLocalEmail] = useState(email)
 
   const detectedType = localEmail.includes('.edu') || localEmail.includes('ac.in')
     ? 'student'
-    : localEmail.includes('@') && !localEmail.includes('.edu')
-      ? 'professional'
-      : null
+    : localEmail.includes('@') ? 'professional' : null
 
   async function handleContinue() {
     if (!localEmail || !localEmail.includes('@')) {
@@ -26,17 +25,15 @@ export function StepEmail() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: localEmail,
-        options: { 
-          shouldCreateUser: true ,
-          emailRedirectTo: undefined,
+        options: {
+          shouldCreateUser: true,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
       if (error) throw error
       setEmail(localEmail)
       setUserType(userType ?? detectedType ?? 'student')
-      setOtpSent(true)
-      nextStep()
-      toast.success('OTP sent — check your inbox!')
+      setSent(true)
     } catch (err: any) {
       toast.error(err.message ?? 'Something went wrong')
     } finally {
@@ -44,18 +41,53 @@ export function StepEmail() {
     }
   }
 
+  // ── Sent state — waiting for user to click email link ──
+  if (sent) {
+    return (
+      <StepCard>
+        <div className="text-center py-4">
+          <div className="text-6xl mb-6">📬</div>
+          <h2 className="font-syne font-bold text-2xl text-[#f0f2ff] mb-3 tracking-tight">
+            Check your inbox
+          </h2>
+          <p className="text-[#8892b0] text-sm mb-2 leading-relaxed">
+            We sent a login link to
+          </p>
+          <p className="text-[#f0f2ff] font-semibold text-sm mb-8">
+            {localEmail}
+          </p>
+
+          <div className="rounded-xl p-4 mb-6 text-left"
+            style={{ background: 'rgba(37,99,255,0.08)', border: '1px solid rgba(37,99,255,0.15)' }}>
+            <p className="text-xs text-[#8892b0] leading-relaxed">
+              📧 Open the email from <span className="text-[#f0f2ff]">noreply@mail.app.supabase.io</span> and click <span className="text-[#7eb3ff]">"Confirm your email"</span> — you'll be brought straight back here to continue setup.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setSent(false)}
+            className="text-sm text-[#4a5272] hover:text-[#8892b0] transition-colors"
+          >
+            ← Use a different email
+          </button>
+        </div>
+      </StepCard>
+    )
+  }
+
+  // ── Default email entry state ──
   return (
     <StepCard>
       <StepTitle>Welcome to CampusBlind.</StepTitle>
       <StepSubtitle>
-        Enter your institutional or work email. We'll verify it to build your trusted identity.
+        Enter your institutional or work email. We'll send you a secure login link — no password needed.
       </StepSubtitle>
 
       {/* User type selector */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         {[
-          { type: 'student',      label: 'Student',      icon: '🎓', hint: '.edu / ac.in' },
-          { type: 'professional', label: 'Professional',  icon: '💼', hint: '.com / .org' },
+          { type: 'student',      label: 'Student',     icon: '🎓', hint: '.edu / ac.in' },
+          { type: 'professional', label: 'Professional', icon: '💼', hint: '.com / .org'  },
         ].map(({ type, label, icon, hint }) => (
           <button
             key={type}
@@ -63,9 +95,7 @@ export function StepEmail() {
             className="rounded-xl p-4 text-left transition-all duration-200 relative overflow-hidden"
             style={{
               background: userType === type
-                ? type === 'student'
-                  ? 'rgba(37,99,255,0.12)'
-                  : 'rgba(124,58,237,0.12)'
+                ? type === 'student' ? 'rgba(37,99,255,0.12)' : 'rgba(124,58,237,0.12)'
                 : 'rgba(255,255,255,0.03)',
               border: `1px solid ${userType === type
                 ? type === 'student' ? 'rgba(37,99,255,0.4)' : 'rgba(124,58,237,0.4)'
@@ -73,10 +103,11 @@ export function StepEmail() {
             }}
           >
             {userType === type && (
-              <div className="absolute top-0 left-0 right-0 h-px"
-                style={{ background: type === 'student'
+              <div className="absolute top-0 left-0 right-0 h-px" style={{
+                background: type === 'student'
                   ? 'linear-gradient(90deg, transparent, #2563ff, transparent)'
-                  : 'linear-gradient(90deg, transparent, #7c3aed, transparent)' }} />
+                  : 'linear-gradient(90deg, transparent, #7c3aed, transparent)',
+              }} />
             )}
             <div className="text-2xl mb-2">{icon}</div>
             <div className="font-syne font-bold text-sm text-[#f0f2ff]">{label}</div>
@@ -104,7 +135,7 @@ export function StepEmail() {
             border: '1px solid rgba(255,255,255,0.1)',
           }}
           onFocus={(e) => e.currentTarget.style.borderColor = 'rgba(37,99,255,0.5)'}
-          onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'}
+          onBlur={(e)  => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'}
           autoComplete="email"
           autoFocus
         />
@@ -116,12 +147,14 @@ export function StepEmail() {
         )}
       </div>
 
-      {/* Info note */}
+      {/* Info */}
       <div className="rounded-xl p-3 mb-6 flex gap-3 items-start"
         style={{ background: 'rgba(37,99,255,0.08)', border: '1px solid rgba(37,99,255,0.15)' }}>
         <span className="text-lg mt-0.5">🔒</span>
         <p className="text-xs text-[#8892b0] leading-relaxed">
-          Your email is only used for verification. It's never shown publicly and is stored encrypted. You'll post as <span className="text-[#f0f2ff]">yourself</span> or as your <span className="text-[#c084fc]">anonymous avatar</span> — never as your email.
+          Your email is only used for verification. You'll post as{' '}
+          <span className="text-[#f0f2ff]">yourself</span> or as your{' '}
+          <span className="text-[#c084fc]">anonymous avatar</span> — never as your email.
         </p>
       </div>
 
@@ -134,7 +167,7 @@ export function StepEmail() {
           boxShadow: '0 8px 30px rgba(37,99,255,0.3)',
         }}
       >
-        {loading ? 'Sending OTP…' : 'Continue →'}
+        {loading ? 'Sending link…' : 'Send login link →'}
       </button>
     </StepCard>
   )
