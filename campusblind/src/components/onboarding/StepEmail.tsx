@@ -26,7 +26,10 @@ export function StepEmail() {
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: localEmail,
-        options: { shouldCreateUser: true },
+        options: { 
+          shouldCreateUser: true ,
+          emailRedirectTo: undefined,
+        },
       })
       if (error) throw error
       setEmail(localEmail)
