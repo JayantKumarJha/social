@@ -1,37 +1,48 @@
 'use client'
 
+import { useUser } from '@clerk/nextjs'
+import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { useOnboardingStore } from '@/store/onboarding'
-import { StepEmail }       from '@/components/onboarding/StepEmail'
 import { StepInstitution } from '@/components/onboarding/StepInstitution'
 import { StepField }       from '@/components/onboarding/StepField'
 import { StepInterests }   from '@/components/onboarding/StepInterests'
 import { StepAvatar }      from '@/components/onboarding/StepAvatar'
 import { ProgressBar }     from '@/components/onboarding/ProgressBar'
 
+const STEP_LABELS = ['Institution', 'Profile', 'Interests', 'Your Avatar']
+
 export default function OnboardingPage() {
-  const searchParams = useSearchParams()
+  const { user, isLoaded } = useUser()
+  const router = useRouter()
   const { step, goToStep } = useOnboardingStore()
 
-  // If redirected back from magic link, jump to step 3
   useEffect(() => {
-    const startStep = searchParams.get('step')
-    if (startStep) goToStep(Number(startStep))
-  }, [])
+    if (isLoaded && !user) router.push('/sign-in')
+    // Start at step 3 (institution) — auth already done by Clerk
+    if (step < 3) goToStep(3)
+  }, [isLoaded, user])
 
-  // Now only 5 real steps (no OTP step)
-  // Step 1 = Email, 2 = Institution, 3 = Field, 4 = Interests, 5 = Avatar
-  const totalSteps = 5
-  const displayStep = step === 1 ? 1 : step - 1 // adjust display after removing step 2
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-[#060810] flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin"
+          style={{ borderColor: 'rgba(37,99,255,0.3)', borderTopColor: '#2563ff' }} />
+      </div>
+    )
+  }
 
-  const steps: Record<number, React.ReactNode> = {
-    1: <StepEmail />,
+  // Steps: 3=Institution, 4=Field, 5=Interests, 6=Avatar
+  const stepMap: Record<number, React.ReactNode> = {
     3: <StepInstitution />,
     4: <StepField />,
     5: <StepInterests />,
     6: <StepAvatar />,
   }
+
+  // Display progress 1-4
+  const displayStep = step - 2
+  const totalSteps  = 4
 
   return (
     <div className="min-h-screen bg-[#060810] flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden">
@@ -63,24 +74,18 @@ export default function OnboardingPage() {
         <span className="font-syne font-bold text-xl tracking-tight text-[#f0f2ff]">CampusBlind</span>
       </div>
 
-      {/* Progress — only show after email step */}
-      {step > 1 && (
-        <div className="relative z-10 w-full max-w-md mb-8">
-          <ProgressBar current={displayStep} total={totalSteps} />
-        </div>
-      )}
-
-      {/* Step card */}
-      <div className="relative z-10 w-full max-w-md">
-        {steps[step] ?? <StepEmail />}
+      {/* Progress */}
+      <div className="relative z-10 w-full max-w-md mb-8">
+        <ProgressBar current={displayStep} total={totalSteps} labels={STEP_LABELS} />
       </div>
 
-      {/* Footer */}
+      {/* Step */}
+      <div className="relative z-10 w-full max-w-md">
+        {stepMap[step] ?? <StepInstitution />}
+      </div>
+
       <p className="relative z-10 mt-10 text-xs text-[#4a5272] text-center">
-        By continuing you agree to our{' '}
-        <a href="#" className="text-[#8892b0] hover:text-[#f0f2ff] transition-colors">Terms</a>
-        {' & '}
-        <a href="#" className="text-[#8892b0] hover:text-[#f0f2ff] transition-colors">Privacy Policy</a>
+        Signed in as <span className="text-[#8892b0]">{user?.emailAddresses[0]?.emailAddress}</span>
       </p>
     </div>
   )
