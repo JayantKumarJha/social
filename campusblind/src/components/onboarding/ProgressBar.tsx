@@ -1,15 +1,18 @@
 'use client'
 
-const STEP_LABELS = ['Email', 'Verify', 'Institution', 'Profile', 'Interests', 'Your Avatar']
+interface Props {
+  current: number
+  total: number
+  labels?: string[]
+}
 
-interface Props { current: number; total: number }
-
-export function ProgressBar({ current, total }: Props) {
+export function ProgressBar({ current, total, labels }: Props) {
+  const label = labels ? labels[current - 1] : `Step ${current}`
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-[#8892b0] font-dm">
-          Step {current} of {total} — {STEP_LABELS[current - 1]}
+          Step {current} of {total} — {label}
         </span>
         <span className="text-xs text-[#4a5272]">{Math.round((current / total) * 100)}%</span>
       </div>
